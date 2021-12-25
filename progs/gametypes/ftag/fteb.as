@@ -22,6 +22,8 @@ bool[] spawnNextRound(maxClients);
 //String[] defrostMessage(maxClients);
 bool doRemoveRagdolls = false;
 
+Cvar g_knockback_scale("g_knockback_scale", "", 0);
+
 // Vec3 doesn't have dot product ffs
 float dot(const Vec3 v1, const Vec3 v2) {
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
@@ -299,7 +301,7 @@ void GT_PlayerRespawn(Entity @ent, int old_team, int new_team) {
 		if(@frozen != null) {
 			frozen.defrost();
 			
-			if ( gametype.shootingDisabled == false) {
+			if (match.getState() == MATCH_STATE_PLAYTIME) {
 				ent.health = 25;
 			}
 		}
@@ -420,6 +422,32 @@ void GT_ThinkRules() {
 			continue;
 		}
 
+		// Detect ammo changes to detect when player shoots to do some knockback stuff to enjoy the game better
+		if (client.inventoryCount(AMMO_BOLTS) < 99) {
+			if (gametype.isInstagib == false) {
+				Vec3 eye = client.getEnt().origin + Vec3(0, 0, client.getEnt().viewHeight);
+
+				Vec3 dir, right, up;
+				// unit vector
+				client.getEnt().angles.angleVectors(dir, right, up);
+
+				Vec3 player_look;
+				player_look = eye + dir * 9001; // Max distance to apply the explosion
+
+				Trace tr; // tr.ent: -1 = nothing; 0 = wall; 1 = player
+				tr.doTrace(eye, Vec3(), Vec3(), player_look, 1, MASK_SOLID); //MASK_SHOT MASK_SOLID
+
+				Entity @ent = @G_SpawnEntity("boom");
+				ent.origin = tr.get_endPos();
+				ent.splashDamage(@ent, 72, 0, 67 * g_knockback_scale.value, 0, MOD_EXPLOSIVE);
+				
+				// destroy splash entity
+				ent.freeEntity();
+
+				client.inventorySetCount(AMMO_BOLTS, 99);
+			}
+		}
+
 		client.inventorySetCount(AMMO_GUNBLADE, 1);
 
 		Entity @ent = client.getEnt();
@@ -491,8 +519,7 @@ void GT_ThinkRules() {
 		}
 		
 		// Draw hurt players with red Regeneration frame
-		if ( (ent.health < 76) && ent.team != TEAM_SPECTATOR )
-        {
+		if ( (ent.health < 76) && ent.team != TEAM_SPECTATOR ) {
             ent.effects |= EF_REGEN;
 		}
 	}
@@ -625,8 +652,10 @@ void GT_InitGametype() {
 	// spawning at initialization do it in GT_SpawnGametype, which is called
 	// right after the map entities spawning.
 	gametype.title = "Electrobolt Freeze Tag";
-	gametype.version = "0.1";
-	gametype.author = "";
+	gametype.version = "0.9.5.6";
+	gametype.author = "Mike^4JS";
+	// Forked by Gelmo
+	// decldev was here
 
 	gametype.spawnableItemsMask = ( IT_WEAPON | IT_AMMO );
 	if(gametype.isInstagib) {
@@ -655,7 +684,7 @@ void GT_InitGametype() {
 	gametype.countdownEnabled = true;
 	gametype.mathAbortDisabled = false;
 	gametype.shootingDisabled = false;
-	gametype.infiniteAmmo = true;
+	gametype.infiniteAmmo = false;
 	gametype.canForceModels = true;
 	gametype.canShowMinimap = true;
 	gametype.teamOnlyMinimap = true;
