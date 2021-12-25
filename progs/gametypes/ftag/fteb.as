@@ -301,7 +301,7 @@ void GT_PlayerRespawn(Entity @ent, int old_team, int new_team) {
 		if(@frozen != null) {
 			frozen.defrost();
 			
-			if (match.getState() == MATCH_STATE_PLAYTIME) {
+			if (gametype.shootingDisabled == false) {
 				ent.health = 25;
 			}
 		}
