@@ -1,7 +1,7 @@
 // TODO: make people spec whoever is defrosting them
 
 const uint FTAG_DEFROST_TIME = 3000;
-const uint FTAG_INVERSE_HAZARD_DEFROST_SCALE = 5;
+const uint FTAG_INVERSE_HAZARD_DEFROST_SCALE = 2;
 const uint FTAG_INVERSE_ATTACK_DEFROST_SCALE = 5;
 const uint FTAG_DEFROST_ATTACK_DELAY = 2000;
 //const uint FTAG_DEFROST_DECAY_DELAY = 500;
@@ -174,7 +174,7 @@ bool GT_Command(Client @client, const String &cmdString, const String &argsStrin
 		response += "----------------\n";
 		G_PrintMsg(client.getEnt(), response);
 		return true;
-	}else if ( cmdString == "cvarinfo" ) {
+	} else if ( cmdString == "cvarinfo" ) {
 		GENERIC_CheatVarResponse( client, cmdString, argsString, argc );
 		return true;
 	} else if(cmdString == "callvotevalidate") {
@@ -727,7 +727,7 @@ void GT_InitGametype() {
 			//+ "set g_noclass_inventory \"eb bolts\"\n"
             //+ "set g_class_strong_ammo \"1\" // EB\n"
 			+ "\n// map rotation\n"
-			+ "set g_maplist \"wfca1 wfca2\" // list of maps in automatic rotation\n"
+			+ "set g_maplist \"wca1 wca2\" // list of maps in automatic rotation\n"
 			+ "set g_maprotation \"1\"   // 0 = same map, 1 = in order, 2 = random\n"
 			+ "\n// game settings\n"
 			+ "set dm_powerupDrop \"0\"\n"
