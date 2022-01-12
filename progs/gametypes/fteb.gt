@@ -10,7 +10,7 @@ generic/spawnpoints.as;
 generic/awards.as;
 
 ftag/fteb.as;
-ftag/ftag_cp.as;
+ftag/ftag_cp_eb.as;
 
 legacy/quake1.as;
 
