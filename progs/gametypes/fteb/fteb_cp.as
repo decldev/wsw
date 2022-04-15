@@ -63,7 +63,7 @@ class cFrozenPlayer {
 		this.sprite.origin = vec;
 		this.sprite.team = player.team;
 		this.sprite.modelindex = G_ImageIndex("gfx/indicators/radar");
-		this.sprite.frame = FTAG_DEFROST_RADIUS; // radius in case of a ET_SPRITE
+		this.sprite.frame = 100; // FTAG_DEFROST_RADIUS; // radius in case of a ET_SPRITE
 		this.sprite.svflags = (this.sprite.svflags & ~uint(SVF_NOCLIENT)) | uint(SVF_BROADCAST) | SVF_ONLYTEAM;
 		this.sprite.linkEntity();
 
@@ -167,6 +167,7 @@ class cFrozenPlayer {
 			}
 
 			G_PrintMsg(null, this.client.name + " was defrosted by " + activator.client.name + "\n");
+			GT_Stats_GetPlayer( activator.client ).stats.add("defrosts", 1);
 
 			defrosts[activator.client.playerNum]++;
 

@@ -48,6 +48,13 @@ void FTAG_playerKilled(Entity @target, Entity @attacker, Entity @inflictor) {
 		return;
 	}
 
+	if(@attacker != null && @attacker.client != null) {
+		if(match.getState() == MATCH_STATE_PLAYTIME) {
+			GT_Stats_GetPlayer( attacker.client ).stats.add("kills", 1);
+			GT_updateScore(attacker.client);
+		}
+	}
+
 	if((G_PointContents(target.origin) & CONTENTS_NODROP) == 0) {
 		if(target.client.weapon > WEAP_GUNBLADE) {
 			GENERIC_DropCurrentWeapon(target.client, true);
@@ -61,10 +68,8 @@ void FTAG_playerKilled(Entity @target, Entity @attacker, Entity @inflictor) {
 
 	cFrozenPlayer(target.client);
 
+	GT_Stats_GetPlayer( target.client ).stats.add("deaths", 1);
 	GT_updateScore(target.client);
-	if(@attacker != null && @attacker.client != null) {
-		GT_updateScore(attacker.client);
-	}
 }
 
 void FTAG_NewRound(Team @loser, int newState) {
@@ -89,6 +94,19 @@ void FTAG_NewRound(Team @loser, int newState) {
 		gametype.pickableItemsMask = 0;
 		gametype.dropableItemsMask = 0;
 		ftaga_roundStateEndTime = levelTime + 1500;
+
+		for(int i = 0; i < maxClients; i++) {
+			Client @client = @G_GetClient(i);
+			if ( client.state() < CS_SPAWNED )
+        		continue;
+
+			if ( client.team == winner.team() ) {
+				GT_Stats_GetPlayer( client ).stats.add("round_wins", 1);
+			} else if ( client.team == loser.team() ) {
+				GT_Stats_GetPlayer( client ).stats.add("round_losses", 1);
+			}
+		}
+
 		return;
 	} else if( ftaga_state == 2 ) {
 		// short buffer period
@@ -140,6 +158,12 @@ void FTAG_ResetDefrostCounters() {
 	}
 }
 
+void GT_SpawnGametype() {
+	// The map entities have just been spawned. The level is initialized for
+	// playing, but nothing has yet started.
+	GT_Stats_Init();
+}
+
 bool GT_Command(Client @client, const String &cmdString, const String &argsString, int argc) {
 	if(cmdString == "drop") {
 		String token;
@@ -186,7 +210,10 @@ bool GT_Command(Client @client, const String &cmdString, const String &argsStrin
 	} else if(cmdString == "callvotepassed") {
 		String votename = argsString.getToken(0);
 		return true;
-	}
+	} else if ( cmdString == "fteb_stats" ) {
+        Stats_Player@ player = @GT_Stats_GetPlayer( client );
+        G_PrintMsg( client.getEnt(), player.stats.toString() );
+    }
 	return false;
 }
 
@@ -257,10 +284,19 @@ void GT_updateScore(Client @client) {
 
 void GT_ScoreEvent(Client @client, const String &score_event, const String &args) {
 	// Some game actions trigger score events. These are events not related to killing
-	// oponents, like capturing a flag
-	if(score_event == "dmg") {
+	// opponents, like capturing a flag
+	if ( score_event == "award" )
+    {
+        if(match.getState() == MATCH_STATE_PLAYTIME) {
+            Stats_Player@ player = @GT_Stats_GetPlayer( client );
+            String cleanAward = "award_" + args.removeColorTokens().tolower();
+            player.stats.add(cleanAward, 1);
+        }
+    } else if(score_event == "dmg") {
 		if(match.getState() == MATCH_STATE_PLAYTIME) {
-			GT_updateScore(client);
+			Entity @attacker = null;
+    		if ( @client != null )
+       			@attacker = @client.getEnt();
 
 			if(@client == null) {
 				return; // ignore falldamage
@@ -269,7 +305,17 @@ void GT_ScoreEvent(Client @client, const String &score_event, const String &args
 			Entity @ent = G_GetEntity(args.getToken(0).toInt());
 			if(@ent != null && @ent.client != null) {
 				lastShotTime[ent.client.playerNum] = levelTime;
+			} else {
+				return; // ignore shots to frozen players
 			}
+
+        	if ( @attacker != null && @attacker.client != null ) {
+            	if (gametype.isInstagib == false) {
+					GT_Stats_GetPlayer( attacker.client ).stats.add("eb_hits", 1);
+				}
+			}
+
+			GT_updateScore(client);
 		}
 	} else if(score_event == "kill") {
 		Entity @attacker = null;
@@ -287,7 +333,22 @@ void GT_ScoreEvent(Client @client, const String &score_event, const String &args
 		/*if(playerIsFrozen[client.playerNum()]) {
 		  playerFrozen[client.playerNum()].kill();
 		  }*/
-	}
+	} else if ( score_event == "enterGame" ) {
+        if ( @client != null )
+        {
+            GT_Stats_GetPlayer( client ).load();
+        }
+    } else if ( score_event == "userinfochanged" ) {
+        if ( @client != null )
+        {
+            Stats_Player@ player = @GT_Stats_GetPlayer( client );
+            if ( @player.stats == null )
+                player.load();
+
+            if ( client.name != player.stats["name"] )
+                player.load();
+        }
+    }
 }
 
 void GT_PlayerRespawn(Entity @ent, int old_team, int new_team) {
@@ -412,18 +473,20 @@ void GT_ThinkRules() {
 		}
 	}
 
-	GENERIC_Think();
+	// GENERIC_Think(); why twice?
 
 	for(int i = 0; i < maxClients; i++) {
 		//defrostMessage[i] = "Defrosting:";
 		Client @client = @G_GetClient(i);
+		if ( client.state() < CS_SPAWNED )
+        	continue;
 
 		if(@client == null || FTAG_PlayerFrozen(@client)) {
 			continue;
 		}
 
-		// Detect ammo changes to detect when player shoots to do some knockback stuff to enjoy the game better
-		if (client.inventoryCount(AMMO_BOLTS) < 99) {
+		// Detect ammo changes to detect when player shoots to do some knockback and stats stuff to enjoy the game better
+		if (client.inventoryCount(AMMO_BOLTS) < 99 &&  {
 			if (gametype.isInstagib == false) {
 				Vec3 eye = client.getEnt().origin + Vec3(0, 0, client.getEnt().viewHeight);
 
@@ -444,6 +507,10 @@ void GT_ThinkRules() {
 				// destroy splash entity
 				ent.freeEntity();
 
+				if ( match.getState() == MATCH_STATE_PLAYTIME ) {
+					GT_Stats_GetPlayer( client ).stats.add("eb_shots", 1);
+				}
+				
 				client.inventorySetCount(AMMO_BOLTS, 99);
 			}
 		}
@@ -641,11 +708,6 @@ void GT_Shutdown() {
 	// the gametype is shutting down cause of a match restart or map change
 }
 
-void GT_SpawnGametype() {
-	// The map entities have just been spawned. The level is initialized for
-	// playing, but nothing has yet started.
-}
-
 void GT_InitGametype() {
 	// Important: This function is called before any entity is spawned, and
 	// spawning entities from it is forbidden. ifyou want to make any entity
@@ -717,6 +779,7 @@ void GT_InitGametype() {
 	// add commands
 	G_RegisterCommand("drop");
 	G_RegisterCommand("gametype");
+	G_RegisterCommand("fteb_stats");
 
 	if(!G_FileExists("configs/server/gametypes/" + gametype.name + ".cfg")) {
 		String config;
