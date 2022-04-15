@@ -486,7 +486,7 @@ void GT_ThinkRules() {
 		}
 
 		// Detect ammo changes to detect when player shoots to do some knockback and stats stuff to enjoy the game better
-		if (client.inventoryCount(AMMO_BOLTS) < 99 &&  {
+		if (client.inventoryCount(AMMO_BOLTS) < 99 {
 			if (gametype.isInstagib == false) {
 				Vec3 eye = client.getEnt().origin + Vec3(0, 0, client.getEnt().viewHeight);
 
