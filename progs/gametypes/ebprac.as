@@ -172,20 +172,26 @@ String @GT_ScoreboardMessage( uint maxlen )
 }
 
 // Some game actions trigger score events. These are events not related to killing
-// oponents, like capturing a flag
+// opponents, like capturing a flag
 // Warning: client can be null
 void GT_ScoreEvent( Client @client, const String &score_event, const String &args )
 {
+    Entity @attacker = null;
+
+    if ( @client != null )
+        @attacker = @client.getEnt();
+
     if ( score_event == "dmg" )
     {
+        Entity @targetPlayer = G_GetEntity( args.getToken( 0 ).toInt() );
+        targetPlayer.client.armor = 200;
+        targetPlayer.health = 100;
+
+        if ( @attacker != null && @attacker.client != null )
+            attacker.client.stats.setScore( attacker.client.stats.score + 1 );
     }
     else if ( score_event == "kill" )
     {
-        Entity @attacker = null;
-
-        if ( @client != null )
-            @attacker = @client.getEnt();
-
         int arg1 = args.getToken( 0 ).toInt();
         int arg2 = args.getToken( 1 ).toInt();
 
@@ -209,50 +215,23 @@ void GT_PlayerRespawn( Entity @ent, int old_team, int new_team )
         ent.client.inventoryGiveItem( WEAP_INSTAGUN );
         ent.client.inventorySetCount( AMMO_INSTAS, 1 );
         ent.client.inventorySetCount( AMMO_WEAK_INSTAS, 1 );
+        ent.client.selectWeapon( WEAP_INSTAGUN );
     }
     else
     {
-        Item @item;
-        Item @ammoItem;
+        ent.client.inventoryClear();
 
-        // the gunblade can't be given (because it can't be dropped)
-        ent.client.inventorySetCount( WEAP_GUNBLADE, 1 );
-        ent.client.inventorySetCount( AMMO_GUNBLADE, 1 ); // enable gunblade blast
+        ent.client.inventoryGiveItem(WEAP_ELECTROBOLT);
+        ent.client.inventorySetCount(AMMO_BOLTS, 99);
+        ent.client.inventorySetCount(AMMO_WEAK_BOLTS, 99);
 
-        // give all weapons
-        for ( int i = WEAP_GUNBLADE + 1; i < WEAP_TOTAL; i++ )
-        {
-            if ( i == WEAP_INSTAGUN ) // dont add instagun...
-                continue;
+        // give armor and health
+        ent.client.armor = 200;
+        ent.health = 100;
 
-            ent.client.inventoryGiveItem( i );
-
-            if ( match.getState() <= MATCH_STATE_WARMUP )
-            {
-                @item = @G_GetItem( i );
-
-                @ammoItem = item.weakAmmoTag == AMMO_NONE ? null : @G_GetItem( item.weakAmmoTag );
-                if ( @ammoItem != null )
-                    ent.client.inventorySetCount( ammoItem.tag, ammoItem.inventoryMax );
-
-                @ammoItem = @G_GetItem( item.ammoTag );
-                if ( @ammoItem != null )
-                    ent.client.inventorySetCount( ammoItem.tag, ammoItem.inventoryMax );
-            }
-        }
-
-        if ( match.getState() <= MATCH_STATE_WARMUP )
-        {
-            ent.client.inventoryGiveItem( ARMOR_YA );
-			ent.client.inventoryGiveItem( ARMOR_YA );
-        }
-		else
-		{
-			ent.health = ent.maxHealth * 1.25;
-		}
+        // select electrobolt
+        ent.client.selectWeapon( WEAP_ELECTROBOLT );
     }
-
-	ent.client.selectWeapon( -1 ); // auto-select best weapon in the inventory
 
     // add a teleportation effect
     ent.respawnEffect();
@@ -357,7 +336,7 @@ void GT_SpawnGametype()
 
 void GT_InitGametype()
 {
-    gametype.title = "Free for All";
+    gametype.title = "Electrobolt Practice";
     gametype.version = "1.02";
     gametype.author = "Warsow Development Team";
 
@@ -371,10 +350,10 @@ void GT_InitGametype()
                  + "// This config will be executed each time the gametype is started\n"
                  + "\n\n// map rotation\n"
                  + "set g_maplist \"wdm1\" // list of maps in automatic rotation\n"
-                 + "set g_maprotation \"1\"   // 0 = same map, 1 = in order, 2 = random\n"
+                 + "set g_maprotation \"0\"   // 0 = same map, 1 = in order, 2 = random\n"
                  + "\n// game settings\n"
                  + "set g_scorelimit \"0\"\n"
-                 + "set g_timelimit \"15\"\n"
+                 + "set g_timelimit \"0\"\n"
                  + "set g_warmup_timelimit \"1\"\n"
                  + "set g_match_extendedtime \"0\"\n"
                  + "set g_allow_falldamage \"1\"\n"
@@ -416,12 +395,12 @@ void GT_InitGametype()
     gametype.countdownEnabled = false;
     gametype.mathAbortDisabled = false;
     gametype.shootingDisabled = false;
-    gametype.infiniteAmmo = false;
+    gametype.infiniteAmmo = true;
     gametype.canForceModels = true;
     gametype.canShowMinimap = false;
     gametype.teamOnlyMinimap = false;
 
-	gametype.mmCompatible = true;
+	gametype.mmCompatible = false;
 	
     gametype.spawnpointRadius = 256;
 
